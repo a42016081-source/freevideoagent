@@ -1,0 +1,29 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"            # the Worker tests use node:sqlite
+      - run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg fonts-noto-core fonts-dejavu-core
+      - run: pip install -r requirements-dev.txt
+      - run: python web/build.py --check       # web/worker.js must match web/src/*
+      - run: python -m pytest -q
+      - name: Offline dry-run render (no network, no secrets)
+        run: python scripts/dry_run.py

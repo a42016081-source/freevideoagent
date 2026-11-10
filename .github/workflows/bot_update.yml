@@ -1,0 +1,49 @@
+name: Bot Update (instant, via relay)
+
+# Triggered by the Cloudflare Worker in bot/worker/ for every Telegram message.
+# Use this OR bot_poll.yml, not both (a Telegram webhook disables getUpdates polling).
+on:
+  repository_dispatch:
+    types: [telegram_update]
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: bot-update-${{ github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  handle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      ALLOWED_USER_IDS: ${{ secrets.ALLOWED_USER_IDS }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GITHUB_REPO: ${{ github.repository }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      D1_DATABASE_ID: ${{ secrets.D1_DATABASE_ID }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      NVIDIA_API_KEY: ${{ secrets.NVIDIA_API_KEY }}
+      NVIDIA_MODEL: ${{ vars.NVIDIA_MODEL }}
+      NVIDIA_IMAGE_MODEL: ${{ vars.NVIDIA_IMAGE_MODEL }}
+      OPENAI_BASE_URL: ${{ secrets.OPENAI_BASE_URL }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      OPENAI_MODEL: ${{ vars.OPENAI_MODEL }}
+      PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
+      PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
+      LLM_ORDER: ${{ vars.LLM_ORDER }}
+      IMAGE_ORDER: ${{ vars.IMAGE_ORDER }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Handle the Telegram update
+        run: python -m bot.process_update

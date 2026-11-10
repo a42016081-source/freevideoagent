@@ -1,0 +1,49 @@
+name: Install Skill
+
+# Alternative to Telegram's /addskill: run this from the Actions tab.
+# The skill is downloaded + scanned and committed as NOT approved. Approve it in Telegram or with
+# `python -m agent.skills approve <name>`.
+on:
+  workflow_dispatch:
+    inputs:
+      github_url:
+        description: "GitHub repo / folder / SKILL.md link"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: bot-state
+  cancel-in-progress: false
+
+jobs:
+  install:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GITHUB_REPO: ${{ github.repository }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      D1_DATABASE_ID: ${{ secrets.D1_DATABASE_ID }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      SKILL_URL: ${{ github.event.inputs.github_url }}      # passed via env, never pasted into a script
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Download, scan and stage the skill
+        run: python -m agent.skills install "$SKILL_URL"
+      - name: Commit the new skill
+        run: |
+          python - <<'PY'
+          import sys
+          from bot.gitstate import commit_state
+          sys.exit(0 if commit_state("chore: add skill [skip ci]") else 1)
+          PY

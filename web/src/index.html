@@ -1,0 +1,434 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<meta name="robots" content="noindex">
+<title>FreeVideoAgent</title>
+<style>
+:root{
+  --bg:#f7f5f1; --panel:#ffffff; --fg:#1f1d1a; --muted:#8a847b; --line:#e6e1d8;
+  --accent:#d9623b; --accent-fg:#ffffff; --user:#ece7dd; --code:#f0ece4; --ok:#2f8f5b; --err:#c0392b;
+  --shadow:0 1px 2px rgba(30,25,15,.06),0 8px 24px rgba(30,25,15,.06);
+}
+@media (prefers-color-scheme: dark){
+  :root{ --bg:#171614; --panel:#201e1b; --fg:#ece8e1; --muted:#9a948a; --line:#34312c;
+         --accent:#e8774f; --accent-fg:#1a1410; --user:#2b2823; --code:#2a2723;
+         --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px rgba(0,0,0,.35); }
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--fg);
+  font:16px/1.55 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans","Noto Sans Devanagari",sans-serif;
+  -webkit-text-size-adjust:100%}
+[hidden]{display:none!important}
+button,input,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+
+/* ---------- login ---------- */
+#login{min-height:100dvh;display:grid;place-items:center;padding:24px 16px}
+.card{width:100%;max-width:380px;background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:28px 24px;box-shadow:var(--shadow)}
+.brand{display:flex;align-items:center;gap:10px;font-weight:650;font-size:20px;margin:0 0 4px}
+.brand svg{width:24px;height:24px;color:var(--accent)}
+.sub{margin:0 0 22px;color:var(--muted);font-size:14px}
+label{display:block;font-size:13px;color:var(--muted);margin:14px 0 6px}
+.field{width:100%;padding:11px 13px;border:1px solid var(--line);border-radius:11px;background:transparent;outline:none}
+.field:focus{border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 22%,transparent)}
+.pw{position:relative}
+.pw button{position:absolute;right:6px;top:50%;transform:translateY(-50%);background:none;border:0;color:var(--muted);padding:6px 8px;font-size:13px}
+.primary{width:100%;margin-top:20px;padding:12px;border:0;border-radius:11px;background:var(--accent);color:var(--accent-fg);font-weight:600}
+.primary:disabled{opacity:.55;cursor:default}
+.err{color:var(--err);font-size:14px;min-height:20px;margin:12px 0 0}
+
+/* ---------- app shell ---------- */
+#app{height:100dvh;display:flex;flex-direction:column;max-width:860px;margin:0 auto}
+header{display:flex;align-items:center;gap:10px;padding:12px 16px;padding-top:max(12px,env(safe-area-inset-top));border-bottom:1px solid var(--line)}
+header .brand{font-size:17px;margin:0;flex:1}
+header .brand svg{width:20px;height:20px}
+.who{font-size:13px;color:var(--muted)}
+.ghost{background:none;border:1px solid var(--line);border-radius:9px;padding:5px 10px;font-size:13px;color:var(--muted)}
+.ghost:hover{color:var(--fg);border-color:var(--muted)}
+#log{flex:1;overflow-y:auto;padding:18px 16px 8px;scroll-behavior:smooth}
+.row{display:flex;margin:0 0 14px}
+.row.me{justify-content:flex-end}
+.bubble{max-width:min(88%,640px);padding:10px 14px;border-radius:16px;white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-word}
+.me .bubble{background:var(--user);border-bottom-right-radius:5px}
+.bot .bubble{background:var(--panel);border:1px solid var(--line);border-bottom-left-radius:5px}
+.bubble a{color:var(--accent)}
+.bubble code{background:var(--code);padding:1px 5px;border-radius:5px;font:13.5px ui-monospace,SFMono-Regular,Menlo,monospace}
+.bubble pre{background:var(--code);padding:10px 12px;border-radius:10px;overflow-x:auto;margin:8px 0;white-space:pre}
+.bubble pre code{background:none;padding:0}
+.btns{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;white-space:normal}
+.chip{border:1px solid var(--line);background:var(--bg);border-radius:999px;padding:6px 13px;font-size:14px}
+.chip:hover:not(:disabled){border-color:var(--accent);color:var(--accent)}
+.chip:disabled{opacity:.5;cursor:default}
+.media{max-width:min(88%,420px)}
+.media img,.media video{display:block;width:100%;border-radius:14px;border:1px solid var(--line);background:#000}
+.media .cap{font-size:14px;color:var(--muted);margin-top:6px;white-space:pre-wrap;overflow-wrap:anywhere}
+.media .dl{font-size:13px;color:var(--accent);margin-top:2px;display:inline-block}
+
+/* ---------- the thinking indicator ---------- */
+.think{max-width:min(92%,640px);color:var(--muted);font-size:15px}
+.think-head{display:flex;align-items:center;gap:9px;background:none;border:0;padding:4px 0;color:inherit;text-align:left}
+.think-head .chev{width:14px;height:14px;opacity:0;transition:transform .2s,opacity .2s}
+.think.done .think-head .chev{opacity:.7}
+.think.done.open .chev{transform:rotate(90deg)}
+.spark{width:19px;height:19px;color:var(--accent);flex:none}
+.think.active .spark{animation:spin 3.2s linear infinite,pulse 1.3s ease-in-out infinite}
+.think-title{font-weight:550}
+.think.active .think-title{
+  background:linear-gradient(90deg,var(--muted) 0%,var(--muted) 35%,var(--fg) 50%,var(--muted) 65%,var(--muted) 100%);
+  background-size:250% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;
+  animation:shimmer 2.1s linear infinite}
+.think-time{font-variant-numeric:tabular-nums;font-size:13px;opacity:.8}
+.think-steps{list-style:none;margin:2px 0 4px 9px;padding:2px 0 2px 18px;border-left:2px solid var(--line)}
+.think-steps li{padding:1px 0;font-size:14px;animation:rise .35s ease both}
+.think.done .think-steps{display:none}
+.think.done.open .think-steps{display:block}
+.think-note{margin:4px 0 0 28px;color:var(--fg);font-size:15px}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes pulse{50%{scale:.78;opacity:.75}}
+@keyframes shimmer{from{background-position:125% 0}to{background-position:-125% 0}}
+@keyframes rise{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion: reduce){
+  .think.active .spark,.think.active .think-title,.think-steps li{animation:none}
+  .think.active .think-title{color:var(--fg);background:none}
+}
+
+/* ---------- empty state + composer ---------- */
+#empty{margin:8vh auto 0;max-width:520px;text-align:center;color:var(--muted)}
+#empty h2{color:var(--fg);font-size:22px;margin:0 0 6px}
+#empty .ex{display:flex;flex-direction:column;gap:8px;margin-top:18px}
+#empty .ex button{border:1px solid var(--line);background:var(--panel);border-radius:12px;padding:10px 14px;text-align:left;color:var(--fg)}
+#empty .ex button:hover{border-color:var(--accent)}
+.hints{display:flex;gap:8px;overflow-x:auto;padding:6px 16px 0;scrollbar-width:none}
+.hints::-webkit-scrollbar{display:none}
+.hints .chip{flex:none;font-size:13px;padding:4px 11px}
+#composer{display:flex;align-items:flex-end;gap:10px;padding:10px 16px;padding-bottom:max(12px,env(safe-area-inset-bottom))}
+#text{flex:1;resize:none;max-height:180px;min-height:46px;padding:11px 14px;border:1px solid var(--line);border-radius:14px;background:var(--panel);outline:none;line-height:1.4}
+#text:focus{border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 22%,transparent)}
+#send{width:46px;height:46px;border-radius:14px;border:0;background:var(--accent);color:var(--accent-fg);display:grid;place-items:center;flex:none}
+#send:disabled{opacity:.45;cursor:default}
+#send svg{width:20px;height:20px}
+#toast{position:fixed;left:50%;bottom:92px;transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:8px 16px;border-radius:999px;font-size:14px;opacity:0;pointer-events:none;transition:opacity .2s;max-width:90vw}
+#toast.show{opacity:.95}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-spark" viewBox="0 0 24 24"><path d="M12 2.5v6M12 15.5v6M2.5 12h6M15.5 12h6M5.3 5.3l4.2 4.2M14.5 14.5l4.2 4.2M18.7 5.3l-4.2 4.2M9.5 14.5l-4.2 4.2" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></symbol>
+  <symbol id="i-chev" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-send" viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+</svg>
+
+<main id="login" hidden>
+  <form class="card" id="loginForm" autocomplete="on">
+    <h1 class="brand"><svg><use href="#i-spark"/></svg>FreeVideoAgent</h1>
+    <p class="sub">Apne bot se web par baat karo. Login karo.</p>
+    <label for="uid">ID</label>
+    <input class="field" id="uid" name="username" autocomplete="username" autocapitalize="none" spellcheck="false" required>
+    <label for="pw">Password</label>
+    <div class="pw">
+      <input class="field" id="pw" name="password" type="password" autocomplete="current-password" required>
+      <button type="button" id="showpw" aria-label="Show password">Show</button>
+    </div>
+    <button class="primary" id="loginBtn" type="submit">Login</button>
+    <p class="err" id="loginErr" role="alert"></p>
+  </form>
+</main>
+
+<div id="app" hidden>
+  <header>
+    <h1 class="brand"><svg><use href="#i-spark"/></svg>FreeVideoAgent</h1>
+    <span class="who" id="who"></span>
+    <button class="ghost" id="clearBtn" type="button">Clear</button>
+    <button class="ghost" id="logoutBtn" type="button">Logout</button>
+  </header>
+  <div id="log" role="log" aria-live="polite" aria-label="Chat">
+    <div id="empty">
+      <h2>Kya banana hai aaj?</h2>
+      <div>Video, image, research ya koi bhi sawal. Telegram jaisa hi sab kuch yahan chalta hai.</div>
+      <div class="ex" id="examples"></div>
+    </div>
+  </div>
+  <div class="hints" id="hints"></div>
+  <form id="composer">
+    <label class="sr" for="text">Message</label>
+    <textarea id="text" rows="1" placeholder="Kuch bhi likho... (jaise: 30 second ka calm English reel banao)"></textarea>
+    <button id="send" type="submit" aria-label="Send" disabled><svg><use href="#i-send"/></svg></button>
+  </form>
+</div>
+<div id="toast" role="status"></div>
+
+<script>
+"use strict";
+const $ = (id) => document.getElementById(id);
+const state = { last: 0, user: null, bubbles: new Map(), thinks: new Map(), placeholder: null,
+                timer: null, activity: Date.now(), polling: false };
+
+// ---------------------------------------------------------------- tiny helpers
+function esc(s){ return String(s).replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+function inline(p){
+  let s = esc(p);
+  s = s.replace(/`([^`\n]+)`/g, "<code>$1</code>");
+  s = s.replace(/\*\*([^*\n]+)\*\*/g, "<strong>$1</strong>");
+  s = s.replace(/(https?:\/\/[^\s<]+[^\s<.,;:!?)\]'"])/g, '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>');
+  return s;
+}
+function fmt(text){
+  return String(text).split("```").map((p, i) =>
+    i % 2 ? `<pre><code>${esc(p.replace(/^[\w+-]*\n/, "").replace(/\n$/, ""))}</code></pre>` : inline(p)).join("");
+}
+function dur(sec){
+  sec = Math.max(0, Math.round(sec));
+  const m = Math.floor(sec / 60), s = sec % 60;
+  return m ? `${m}m ${String(s).padStart(2, "0")}s` : `${s}s`;
+}
+function safeUrl(u){ return typeof u === "string" && /^\/api\/file\/f_[0-9a-f]+$/.test(u) ? u : ""; }
+function toast(text){
+  const t = $("toast"); t.textContent = text; t.classList.add("show");
+  clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove("show"), 2600);
+}
+async function api(path, opts = {}){
+  const res = await fetch(path, { credentials: "same-origin", cache: "no-store",
+    ...opts, headers: { "X-Requested-With": "fva", ...(opts.body ? { "Content-Type": "application/json" } : {}) } });
+  if (res.status === 401 && path !== "/api/login") { showLogin(); throw new Error("login required"); }
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw Object.assign(new Error(data.error || res.statusText), { status: res.status });
+  return data;
+}
+
+// ---------------------------------------------------------------- DOM building
+const log = $("log");
+function nearBottom(){ return log.scrollHeight - log.scrollTop - log.clientHeight < 140; }
+function place(node){
+  const stick = nearBottom();
+  $("empty").hidden = true;
+  if (state.placeholder && state.placeholder.el.parentNode === log) log.insertBefore(node, state.placeholder.el);
+  else log.appendChild(node);
+  if (stick) log.scrollTop = log.scrollHeight;
+}
+function row(cls){ const r = document.createElement("div"); r.className = "row " + cls; return r; }
+
+function addUser(text){
+  const r = row("me"), b = document.createElement("div");
+  b.className = "bubble"; b.innerHTML = fmt(text); r.appendChild(b); place(r);
+}
+function fillBot(b, text, buttons){
+  b.innerHTML = fmt(text);
+  if (buttons && buttons.length){
+    const box = document.createElement("div"); box.className = "btns";
+    for (const line of buttons) for (const bt of line){
+      const c = document.createElement("button"); c.type = "button"; c.className = "chip"; c.textContent = bt.t;
+      c.onclick = () => { box.querySelectorAll("button").forEach((x) => x.disabled = true); callback(bt.d, b.dataset.mid); };
+      box.appendChild(c);
+    }
+    b.appendChild(box);
+  }
+}
+function addBot(mid, text, buttons){
+  const r = row("bot"), b = document.createElement("div");
+  b.className = "bubble"; b.dataset.mid = mid; fillBot(b, text, buttons);
+  r.appendChild(b); place(r); state.bubbles.set(String(mid), b);
+}
+function addMedia(kind, d){
+  const url = safeUrl(d.url), r = row("bot"), box = document.createElement("div");
+  box.className = "media";
+  if (!url){ box.innerHTML = `<div class="bubble">${fmt(d.caption || "File not available")}</div>`; r.appendChild(box); return place(r); }
+  const el = document.createElement(kind === "video" ? "video" : "img");
+  el.src = url;
+  if (kind === "video"){ el.controls = true; el.playsInline = true; el.preload = "metadata"; }
+  else { el.alt = d.caption || "image"; el.loading = "lazy"; el.onload = () => { if (nearBottom()) log.scrollTop = log.scrollHeight; }; }
+  if (d.w && d.h) el.style.aspectRatio = d.w + " / " + d.h;
+  box.appendChild(el);
+  if (d.caption){ const c = document.createElement("div"); c.className = "cap"; c.textContent = d.caption; box.appendChild(c); }
+  const a = document.createElement("a"); a.className = "dl"; a.href = url; a.download = kind === "video" ? "video.mp4" : "image.jpg"; a.textContent = "Download";
+  box.appendChild(a); r.appendChild(box); place(r);
+}
+
+// ---------------------------------------------------------------- thinking indicator
+function makeThinking(title, t0, replay){
+  const el = document.createElement("div");
+  el.className = "think active";
+  el.innerHTML = '<button class="think-head" type="button" aria-expanded="false">' +
+    '<svg class="spark"><use href="#i-spark"/></svg><span class="think-title"></span><span class="think-time"></span>' +
+    '<svg class="chev"><use href="#i-chev"/></svg></button><ol class="think-steps"></ol><div class="think-note" hidden></div>';
+  const th = { el, title, t0, done: false, steps: el.querySelector(".think-steps"),
+               titleEl: el.querySelector(".think-title"), timeEl: el.querySelector(".think-time"),
+               note: el.querySelector(".think-note"), lastT: t0 };
+  th.titleEl.textContent = (title || "Thinking") + "…";
+  el.querySelector(".think-head").onclick = () => {
+    if (!th.done) return;
+    const open = el.classList.toggle("open");
+    el.querySelector(".think-head").setAttribute("aria-expanded", open);
+  };
+  const r = row("bot"); r.appendChild(el); place(r);
+  tick(th);
+  return th;
+}
+function tick(th){
+  if (th.done) return;
+  th.timeEl.textContent = dur(Date.now() / 1000 - th.t0);
+}
+function finishThinking(th, final, t){
+  if (th.done) return;
+  th.done = true;
+  const took = Math.max(0, (t || Date.now() / 1000) - th.t0);
+  th.el.classList.remove("active"); th.el.classList.add("done");
+  th.titleEl.textContent = th.title === "Thinking" ? "Thought for " + dur(took) : (th.title || "Done") + " · " + dur(took);
+  th.timeEl.textContent = "";
+  if (final){ th.note.hidden = false; th.note.textContent = final; }
+  if (!th.steps.children.length) th.el.querySelector(".chev").style.display = "none";
+}
+function thinkFor(tid, ev, replay){
+  let th = state.thinks.get(tid);
+  if (!th){ th = makeThinking(ev.data.title || "Thinking", ev.t, replay); state.thinks.set(tid, th); }
+  th.lastT = ev.t;
+  return th;
+}
+setInterval(() => { for (const th of state.thinks.values()) tick(th); }, 1000);
+
+function showPlaceholder(){
+  clearPlaceholder();
+  const th = makeThinking("Thinking", Date.now() / 1000, false);
+  const stale = setTimeout(() => {
+    if (state.placeholder && state.placeholder.th === th){
+      th.titleEl.textContent = "Waiting for the bot… (it may be restarting, your message is queued)";
+    }
+  }, 45000);
+  state.placeholder = { th, el: th.el.parentNode, stale };
+}
+function clearPlaceholder(){
+  const p = state.placeholder; if (!p) return;
+  clearTimeout(p.stale); p.el.remove(); state.placeholder = null;
+}
+
+// ---------------------------------------------------------------- applying server events
+function apply(ev, replay){
+  const d = ev.data || {};
+  state.activity = Date.now();
+  if (ev.type !== "user") clearPlaceholder();
+  switch (ev.type){
+    case "user": addUser(d.text || ""); break;
+    case "msg": addBot(d.mid, d.text || "", d.buttons); break;
+    case "edit": {
+      const b = state.bubbles.get(String(d.mid));
+      if (b) fillBot(b, d.text || "", d.buttons); else addBot(d.mid, d.text || "", d.buttons);
+      break; }
+    case "del": { const b = state.bubbles.get(String(d.mid)); if (b){ b.closest(".row").remove(); state.bubbles.delete(String(d.mid)); } break; }
+    case "toast": if (!replay) toast(d.text || ""); break;
+    case "image": addMedia("image", d); break;
+    case "video": addMedia("video", d); break;
+    case "think_start": thinkFor(d.tid, ev, replay); break;
+    case "think_step": {
+      const th = thinkFor(d.tid, ev, replay);
+      const li = document.createElement("li"); li.textContent = d.text || ""; th.steps.appendChild(li);
+      if (nearBottom()) log.scrollTop = log.scrollHeight;
+      break; }
+    case "think_stop": { const th = thinkFor(d.tid, ev, replay); finishThinking(th, d.final, ev.t); break; }
+  }
+}
+function settleStale(){            // a thinking that never got a stop (bot crashed) must not spin forever
+  const cutoff = Date.now() / 1000 - 20 * 60;
+  for (const th of state.thinks.values()) if (!th.done && th.lastT < cutoff) finishThinking(th, "Stopped (no update for 20 minutes)", th.lastT);
+}
+function busy(){ return !!state.placeholder || [...state.thinks.values()].some((t) => !t.done); }
+
+// ---------------------------------------------------------------- polling
+async function poll(){
+  clearTimeout(state.timer);
+  let failed = false;
+  try {
+    const r = await api("/api/events?after=" + state.last);
+    for (const ev of r.events) apply(ev, false);
+    state.last = r.last; settleStale();
+  } catch (e) { failed = true; }
+  const idle = (Date.now() - state.activity) / 1000;
+  let wait = busy() ? 900 : idle > 120 ? 10000 : 3500;
+  if (document.hidden) wait = Math.max(wait, 15000);
+  if (failed) wait = 6000;
+  if (state.user) state.timer = setTimeout(poll, wait);
+}
+document.addEventListener("visibilitychange", () => { if (!document.hidden && state.user) poll(); });
+
+// ---------------------------------------------------------------- sending
+async function send(text){
+  text = text.trim(); if (!text) return;
+  showPlaceholder();
+  try { await api("/api/send", { method: "POST", body: JSON.stringify({ text }) }); }
+  catch (e) { clearPlaceholder(); toast(e.status === 429 ? "Thoda dheere... bahut zyada messages" : "Send nahi hua: " + e.message); return; }
+  poll();
+}
+async function callback(data, mid){
+  try { await api("/api/send", { method: "POST", body: JSON.stringify({ callback: { data, mid: Number(mid) || 0 } }) }); }
+  catch (e) { toast("Failed: " + e.message); return; }
+  poll();
+}
+
+// ---------------------------------------------------------------- views
+function showLogin(){
+  state.user = null; clearTimeout(state.timer);
+  $("app").hidden = true; $("login").hidden = false; $("uid").focus();
+}
+async function showApp(user){
+  state.user = user; state.last = 0; state.bubbles.clear(); state.thinks.clear(); state.placeholder = null;
+  [...log.children].forEach((c) => { if (c.id !== "empty") c.remove(); });
+  $("empty").hidden = false;
+  $("who").textContent = user;
+  $("login").hidden = true; $("app").hidden = false;
+  try {
+    const r = await api("/api/history");
+    for (const ev of r.events) apply(ev, true);
+    state.last = r.last; settleStale();
+  } catch (e) { return; }
+  log.scrollTop = log.scrollHeight;
+  poll(); $("text").focus();
+}
+
+$("loginForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const btn = $("loginBtn"), err = $("loginErr");
+  btn.disabled = true; err.textContent = ""; btn.textContent = "Checking…";
+  try {
+    const r = await api("/api/login", { method: "POST", body: JSON.stringify({ id: $("uid").value, password: $("pw").value }) });
+    $("pw").value = ""; await showApp(r.user);
+  } catch (ex) { err.textContent = ex.message; }
+  finally { btn.disabled = false; btn.textContent = "Login"; }
+});
+$("showpw").onclick = () => { const p = $("pw"), show = p.type === "password"; p.type = show ? "text" : "password"; $("showpw").textContent = show ? "Hide" : "Show"; };
+$("logoutBtn").onclick = async () => { try { await api("/api/logout", { method: "POST", body: "{}" }); } catch {} showLogin(); };
+$("clearBtn").onclick = async () => {
+  if (!confirm("Is chat ki history saaf kar dun?")) return;
+  try { await api("/api/clear", { method: "POST", body: "{}" }); await showApp(state.user); } catch (e) { toast(e.message); }
+};
+
+const ta = $("text");
+function grow(){ ta.style.height = "auto"; ta.style.height = Math.min(ta.scrollHeight, 180) + "px"; $("send").disabled = !ta.value.trim(); }
+ta.addEventListener("input", grow);
+ta.addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && !e.shiftKey && !e.isComposing){ e.preventDefault(); $("composer").requestSubmit(); }
+});
+$("composer").addEventListener("submit", (e) => {
+  e.preventDefault(); const t = ta.value; if (!t.trim()) return;
+  ta.value = ""; grow(); send(t);
+});
+
+for (const c of ["/video ", "/image ", "/ask ", "/research ", "/trends", "/status", "/settings", "/skills", "/notes", "/help"]){
+  const b = document.createElement("button"); b.type = "button"; b.className = "chip"; b.textContent = c.trim();
+  b.onclick = () => { if (c.endsWith(" ")){ ta.value = c; grow(); ta.focus(); } else send(c); };
+  $("hints").appendChild(b);
+}
+for (const ex of ["30 second ka Hindi motivational reel banao, calm music", "20 second calm English reel", "/trends", "/research AI video tools"]){
+  const b = document.createElement("button"); b.type = "button"; b.textContent = ex; b.onclick = () => send(ex);
+  $("examples").appendChild(b);
+}
+
+(async () => {
+  try { const me = await api("/api/me"); await showApp(me.user); } catch { showLogin(); }
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,115 @@
+name: Render Video
+
+# Run name contains the chat id so the bot's /status and /cancel can find your jobs.
+run-name: "${{ github.event.inputs.prompt || github.event.client_payload.prompt }} · chat ${{ github.event.inputs.chat_id || github.event.client_payload.chat_id }}"
+
+on:
+  workflow_dispatch:
+    inputs:
+      prompt:
+        description: "What video do you want?"
+        required: true
+        type: string
+      chat_id:
+        description: "Telegram chat id to send the result to (optional)"
+        required: false
+        default: ""
+        type: string
+      prefs:
+        description: "User settings as JSON (set by the bot)"
+        required: false
+        default: "{}"
+        type: string
+  repository_dispatch:
+    types: [telegram_video]
+
+permissions:
+  contents: read            # this job runs approved skill scripts: keep its token read-only
+
+concurrency:
+  group: video-${{ github.run_id }}       # every request gets its own run (never cancels another)
+  cancel-in-progress: false
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      # Optional providers. Unset secrets simply arrive as empty strings and are ignored.
+      NVIDIA_API_KEY: ${{ secrets.NVIDIA_API_KEY }}
+      NVIDIA_MODEL: ${{ vars.NVIDIA_MODEL }}
+      NVIDIA_IMAGE_MODEL: ${{ vars.NVIDIA_IMAGE_MODEL }}
+      OPENAI_BASE_URL: ${{ secrets.OPENAI_BASE_URL }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      OPENAI_MODEL: ${{ vars.OPENAI_MODEL }}
+      ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
+      ELEVENLABS_VOICE_ID: ${{ secrets.ELEVENLABS_VOICE_ID }}
+      PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
+      PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
+      LLM_ORDER: ${{ vars.LLM_ORDER }}
+      IMAGE_ORDER: ${{ vars.IMAGE_ORDER }}
+      USE_OLLAMA: ${{ vars.USE_OLLAMA }}      # set the repo variable to "true" to enable the Ollama fallback
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      D1_DATABASE_ID: ${{ secrets.D1_DATABASE_ID }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      WEB_BASE_URL: ${{ secrets.WEB_BASE_URL }}        # web chat: where the finished video is delivered
+      BRIDGE_SECRET: ${{ secrets.BRIDGE_SECRET }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false         # skills run in this job: don't leave a git token on disk
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: System packages (ffmpeg + Hindi font + offline voice)
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg fonts-noto-core fonts-dejavu-core espeak-ng
+          fc-cache -f
+          fc-list :lang=hi family | head -3 || true
+
+      - name: Python packages
+        run: pip install -r requirements.txt
+
+      - name: Hindi font fallback (only if apt did not provide one)
+        run: python scripts/download_fonts.py || true
+
+      - name: Cache Ollama models
+        if: env.USE_OLLAMA == 'true'
+        uses: actions/cache@v4
+        with:
+          path: ~/.ollama
+          key: ollama-qwen2.5-3b-v1
+
+      - name: Start Ollama (optional LLM fallback)
+        if: env.USE_OLLAMA == 'true'
+        run: |
+          curl -fsSL https://ollama.com/install.sh | sh
+          (ollama serve > /tmp/ollama.log 2>&1 &)
+          sleep 6
+          ollama pull qwen2.5:3b
+
+      - name: Render
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPO: ${{ github.repository }}
+          PROMPT: ${{ github.event.inputs.prompt || github.event.client_payload.prompt }}
+          CHAT_ID: ${{ github.event.inputs.chat_id || github.event.client_payload.chat_id }}
+          PREFS: ${{ github.event.inputs.prefs || github.event.client_payload.prefs }}
+        run: python -m agent.run_job
+
+      - name: Keep the result as a downloadable artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: video-output
+          path: |
+            output/*.mp4
+            output/*.jpg
+            output/*_report.txt
+          if-no-files-found: ignore
+          retention-days: 3

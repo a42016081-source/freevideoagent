@@ -1,0 +1,3 @@
+# Optional extras (not needed for the default setup)
+trafilatura>=1.12      # cleaner text extraction for /research
+faster-whisper>=1.0    # sample-accurate caption timing: set CAPTIONS_ALIGN=whisper

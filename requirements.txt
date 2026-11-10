@@ -1,0 +1,11 @@
+# Runtime dependencies (kept small on purpose: video is rendered with plain ffmpeg, not MoviePy).
+# Lower bounds only: the scraping-style libraries (edge-tts, ddgs) break when upstream changes,
+# so we always want their newest release instead of a pinned, stale one.
+requests>=2.31
+pydantic>=2.6,<3
+python-dotenv>=1.0
+PyYAML>=6.0
+Pillow>=10.0
+numpy>=1.26
+edge-tts>=6.1.12
+ddgs

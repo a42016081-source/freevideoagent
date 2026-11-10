@@ -1,0 +1,28 @@
+# Defaults and tuning. Secrets/API keys NEVER go here - use environment variables / GitHub Secrets.
+defaults:
+  language: hi              # hi | en | hinglish
+  aspect_ratio: "9:16"      # 9:16 | 16:9 | 1:1
+  voice_hi: hi-IN-SwaraNeural
+  voice_hinglish: en-IN-NeerjaNeural
+  voice_en: en-US-AriaNeural
+
+providers:
+  # Tried in this order; a provider without a key is skipped automatically.
+  llm_order: [nvidia, openai, pollinations, ollama]
+  image_order: [pexels, nvidia, pollinations, pixabay]
+
+render:
+  fps: 24
+  crf: 23
+  preset: veryfast          # veryfast = quick on CPU; use medium/slow for smaller files
+  threads: 0                # 0 = let ffmpeg decide
+  max_size_mb: 48           # Telegram bots may upload at most 50 MB
+  kenburns: true            # slow zoom/pan on still images
+  transition_sec: 0.3
+  scene_pad: 0.35           # silence added after each narrated scene (seconds)
+
+captions:
+  font_devanagari: "Noto Sans Devanagari"
+  font_latin: "DejaVu Sans"
+  highlight: "FFE500"       # karaoke highlight colour (RGB hex)
+  max_words_per_line: 3

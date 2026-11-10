@@ -1,0 +1,18 @@
+# Web chat Worker (free plan). Deploy:  cd web && npx wrangler deploy      (steps: web/README.md)
+name = "freevideoagent-web"
+main = "worker.js"
+compatibility_date = "2025-01-01"
+
+# The SAME D1 database the bot uses for its memory (README -> "Cloudflare D1").
+[[d1_databases]]
+binding = "DB"
+database_name = "freevideoagent"
+database_id = "PASTE-YOUR-D1-DATABASE-ID"
+
+# Videos / images shown in the chat live here for 7 days.  npx wrangler kv namespace create FILES
+[[kv_namespaces]]
+binding = "FILES"
+id = "PASTE-YOUR-KV-NAMESPACE-ID"
+
+# Secrets are NOT written here. Set them with:  npx wrangler secret put <NAME>
+#   SESSION_SECRET  BRIDGE_SECRET  WEB_USER  WEB_PASSWORD  WEB_UID
